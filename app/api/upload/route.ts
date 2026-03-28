@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -10,16 +10,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    const blob = await put(file.name, file, {
-      access: 'public',
-    })
+    const supabase = await createClient()
 
-    return NextResponse.json({ url: blob.url })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const ext = file.name.split('.').pop() || 'png'
+    const fileName = `${user.id}/${Date.now()}.${ext}`
+
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = new Uint8Array(arrayBuffer)
+
+    const { data, error } = await supabase.storage
+      .from('memes')
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: false,
+      })
+
+    if (error) {
+      console.error('Storage upload error:', error)
+      return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('memes')
+      .getPublicUrl(data.path)
+
+    return NextResponse.json({ url: publicUrlData.publicUrl })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json(
-      { error: 'Upload failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
   }
 }

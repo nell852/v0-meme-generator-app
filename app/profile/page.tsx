@@ -35,7 +35,7 @@ export default function ProfilePage() {
 
         // Fetch profile
         const { data: profileData } = await supabase
-          .from('profiles')
+          .from('users')
           .select('*')
           .eq('id', user.id)
           .single()
@@ -69,7 +69,7 @@ export default function ProfilePage() {
     try {
       const supabase = createClient()
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({ bio })
         .eq('id', user.id)
 

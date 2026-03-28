@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { CanvasEditor } from './Editor/CanvasEditor'
 import { ToolBar } from './Editor/ToolBar'
 import { SaveMemeModal } from './Editor/SaveMemeModal'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 export function MemeEditor() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -17,6 +18,7 @@ export function MemeEditor() {
   const [isSaving, setIsSaving] = useState(false)
   const canvasRef = useRef<any>(null)
   const router = useRouter()
+  const { user } = useAuth()
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -64,6 +66,7 @@ export function MemeEditor() {
               title,
               image_url: url,
               is_published: true,
+              user_id: user?.id,
             },
           ])
 
