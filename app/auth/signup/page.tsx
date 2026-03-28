@@ -46,6 +46,7 @@ export default function SignupPage() {
       if (error) throw error
       // If email confirmation is disabled, a session is returned immediately
       if (data.session) {
+        router.refresh()
         router.push('/gallery')
       } else {
         router.push('/auth/sign-up-success')

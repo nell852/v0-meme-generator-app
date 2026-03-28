@@ -7,6 +7,8 @@ import { MemeDetail } from '@/components/Gallery/MemeDetail'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { Meme } from '@/lib/types/database'
+import Link from 'next/link'
+import { ImagePlus } from 'lucide-react'
 
 export default function GalleryPage() {
   const [memes, setMemes] = useState<Meme[]>([])
@@ -101,10 +103,22 @@ export default function GalleryPage() {
         ) : filteredMemes.length > 0 ? (
           <MemeGrid memes={filteredMemes} onSelectMeme={setSelectedMeme} />
         ) : (
-          <div className="text-center py-12">
-            <p className="text-lg text-muted-foreground">
-              {search ? 'No memes found matching your search.' : 'No memes yet. Be the first to create one!'}
-            </p>
+          <div className="text-center py-20">
+            {search ? (
+              <p className="text-lg text-muted-foreground">No memes found matching your search.</p>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <ImagePlus className="h-16 w-16 text-muted-foreground/40" />
+                <p className="text-xl font-semibold">No memes yet</p>
+                <p className="text-muted-foreground mb-2">Be the first to create one!</p>
+                <Link href="/editor">
+                  <Button size="lg" className="gap-2">
+                    <ImagePlus className="h-5 w-5" />
+                    Create Your First Meme
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>
