@@ -32,14 +32,9 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/protected`,
-        },
       })
       if (error) throw error
-      router.push('/protected')
+      router.push('/gallery')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -90,7 +85,7 @@ export default function LoginPage() {
                 <div className="mt-4 text-center text-sm">
                   Don&apos;t have an account?{' '}
                   <Link
-                    href="/auth/sign-up"
+                    href="/auth/signup"
                     className="underline underline-offset-4"
                   >
                     Sign up

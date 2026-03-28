@@ -3,6 +3,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  allowedDevOrigins: ['*.spock.replit.dev', '*.replit.dev'],
   images: {
     remotePatterns: [
       {
