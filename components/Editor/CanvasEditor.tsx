@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Canvas, Image as FabricImage, Text as FabricText } from 'fabric'
+import { Canvas, Image as FabricImage, Text as FabricText, Rect, Circle } from 'fabric'
 
 interface CanvasEditorRef {
   addText: (text: string) => void
@@ -95,7 +95,6 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
         let shape
 
         if (type === 'rectangle') {
-          const { Rect } = require('fabric')
           shape = new Rect({
             left: 100,
             top: 100,
@@ -106,7 +105,6 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
             strokeWidth: 2,
           })
         } else if (type === 'circle') {
-          const { Circle } = require('fabric')
           shape = new Circle({
             left: 100,
             top: 100,
