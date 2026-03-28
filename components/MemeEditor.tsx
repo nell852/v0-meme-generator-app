@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -82,17 +81,16 @@ export function MemeEditor() {
 
       const { url } = await uploadResponse.json()
 
-      const supabase = createClient()
-      const { error } = await supabase.from('memes').insert([
-        {
-          title,
-          image_url: url,
-          is_published: true,
-          user_id: user.id,
-        },
-      ])
+      const saveResponse = await fetch('/api/memes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, image_url: url }),
+      })
 
-      if (error) throw error
+      if (!saveResponse.ok) {
+        const errData = await saveResponse.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to save meme')
+      }
 
       toast.success('Meme created successfully!')
       setShowSaveModal(false)

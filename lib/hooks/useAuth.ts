@@ -1,27 +1,29 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { User as AuthUser } from '@supabase/supabase-js'
+
+interface AuthUser {
+  id: string
+  email?: string
+  user_metadata?: Record<string, unknown>
+}
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClient()
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user ?? null)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    // Use server-side /api/auth/me which reads the httpOnly cookie
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then(({ user }) => {
+        setUser(user ?? null)
+        setLoading(false)
+      })
+      .catch(() => {
+        setUser(null)
+        setLoading(false)
+      })
   }, [])
 
   return { user, loading }

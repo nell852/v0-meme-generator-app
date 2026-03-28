@@ -83,7 +83,10 @@ export function ToolBar({ canvasRef }: ToolBarProps) {
           min="10"
           max="100"
           value={fontSize}
-          onChange={(e) => changeFontSize(parseInt(e.target.value))}
+          onChange={(e) => {
+            const val = parseInt(e.target.value)
+            if (!isNaN(val) && val >= 10 && val <= 200) changeFontSize(val)
+          }}
         />
       </FieldGroup>
 
