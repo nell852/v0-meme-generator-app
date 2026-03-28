@@ -1,7 +1,6 @@
 'use client'
 
 import type { Meme } from '@/lib/types/database'
-import Image from 'next/image'
 import { Heart, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -17,18 +16,17 @@ export function MemeCard({ meme, onClick }: MemeCardProps) {
       className="cursor-pointer rounded-lg border border-border bg-card overflow-hidden hover:shadow-lg transition-shadow"
     >
       <div className="relative h-64 w-full bg-muted">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={meme.image_url}
           alt={meme.title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="absolute inset-0 w-full h-full object-cover"
         />
       </div>
 
       <div className="p-4">
         <h3 className="font-semibold text-lg truncate">{meme.title}</h3>
-        
+
         <Link
           href={`/profile/${meme.user?.id}`}
           className="text-sm text-muted-foreground hover:text-primary transition-colors"
