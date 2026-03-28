@@ -32,16 +32,19 @@ export function MemeEditor() {
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!canvasRef.current) {
       toast.error('Nothing to download yet')
       return
     }
-    const canvas = canvasRef.current.getElement()
-    if (!canvas) return
+    const dataUrl = canvasRef.current.toDataURL()
+    if (!dataUrl) {
+      toast.error('Could not export canvas')
+      return
+    }
     const link = document.createElement('a')
     link.download = `${title || 'meme'}.png`
-    link.href = canvas.toDataURL('image/png')
+    link.href = dataUrl
     link.click()
   }
 
@@ -51,56 +54,55 @@ export function MemeEditor() {
       return
     }
 
+    if (!user) {
+      toast.error('Please log in to save memes')
+      return
+    }
+
     try {
       setIsSaving(true)
 
-      // Get canvas data as PNG
-      const canvas = canvasRef.current.getElement()
-      canvas.toBlob(async (blob: Blob) => {
-        try {
-          // Upload to Vercel Blob
-          const formData = new FormData()
-          formData.append('file', blob)
+      const blob = await canvasRef.current.toBlob()
+      if (!blob) {
+        throw new Error('Could not export canvas')
+      }
 
-          const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
+      const formData = new FormData()
+      formData.append('file', blob, `${title}.png`)
 
-          if (!uploadResponse.ok) {
-            throw new Error('Upload failed')
-          }
-
-          const { url } = await uploadResponse.json()
-
-          // Save to Supabase
-          const supabase = createClient()
-          const { error } = await supabase.from('memes').insert([
-            {
-              title,
-              image_url: url,
-              is_published: true,
-              user_id: user?.id,
-            },
-          ])
-
-          if (error) throw error
-
-          toast.success('Meme created successfully!')
-          setShowSaveModal(false)
-          setTitle('')
-          setImageUrl(null)
-          router.push('/gallery')
-        } catch (error) {
-          console.error('Error saving meme:', error)
-          toast.error('Failed to save meme')
-        } finally {
-          setIsSaving(false)
-        }
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
       })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Upload failed')
+      }
+
+      const { url } = await uploadResponse.json()
+
+      const supabase = createClient()
+      const { error } = await supabase.from('memes').insert([
+        {
+          title,
+          image_url: url,
+          is_published: true,
+          user_id: user.id,
+        },
+      ])
+
+      if (error) throw error
+
+      toast.success('Meme created successfully!')
+      setShowSaveModal(false)
+      setTitle('')
+      setImageUrl(null)
+      router.push('/gallery')
     } catch (error) {
-      console.error('Error:', error)
-      toast.error('Something went wrong')
+      console.error('Error saving meme:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save meme')
+    } finally {
       setIsSaving(false)
     }
   }
@@ -117,12 +119,11 @@ export function MemeEditor() {
               type="file"
               accept="image/*"
               onChange={handleImageUpload}
-              className="mx-auto"
+              className="mx-auto max-w-xs"
             />
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Main Canvas */}
             <div className="lg:col-span-3">
               <CanvasEditor ref={canvasRef} imageUrl={imageUrl} />
               <Button
@@ -134,7 +135,6 @@ export function MemeEditor() {
               </Button>
             </div>
 
-            {/* Toolbar */}
             <div>
               <ToolBar canvasRef={canvasRef} />
               <div className="mt-8 space-y-4">
@@ -149,7 +149,7 @@ export function MemeEditor() {
                 <Button
                   onClick={() => setShowSaveModal(true)}
                   className="w-full"
-                  disabled={!title || isSaving}
+                  disabled={!title || isSaving || !user}
                 >
                   {isSaving ? 'Saving...' : 'Save & Share'}
                 </Button>

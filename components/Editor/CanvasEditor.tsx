@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Canvas, Image as FabricImage, Text as FabricText, Rect, Circle } from 'fabric'
+import { fabric } from 'fabric'
 
 interface CanvasEditorRef {
   addText: (text: string) => void
@@ -10,6 +10,8 @@ interface CanvasEditorRef {
   changeTextColor: (color: string) => void
   changeFontSize: (size: number) => void
   getElement: () => HTMLCanvasElement | null
+  toBlob: () => Promise<Blob | null>
+  toDataURL: () => string | null
 }
 
 interface CanvasEditorProps {
@@ -18,7 +20,7 @@ interface CanvasEditorProps {
 
 export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
   ({ imageUrl }, ref) => {
-    const canvasRef = useRef<Canvas | null>(null)
+    const canvasRef = useRef<fabric.Canvas | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const elementRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -26,42 +28,39 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
       if (!containerRef.current || !imageUrl) return
 
       const initCanvas = async () => {
-        // Clear previous canvas
         if (canvasRef.current) {
           canvasRef.current.dispose()
+          canvasRef.current = null
         }
 
-        // Create new canvas
         elementRef.current = document.createElement('canvas')
         elementRef.current.id = 'meme-canvas'
         containerRef.current!.innerHTML = ''
         containerRef.current!.appendChild(elementRef.current)
 
-        canvasRef.current = new Canvas(elementRef.current, {
+        const canvas = new fabric.Canvas(elementRef.current, {
           width: 600,
           height: 600,
           backgroundColor: '#ffffff',
         })
+        canvasRef.current = canvas
 
-        // Load and add image
-        try {
-          const img = await FabricImage.fromURL(imageUrl, {
-            crossOrigin: 'anonymous',
-          })
-
-          // Scale image to fit canvas
-          const scale = Math.min(600 / img.width!, 600 / img.height!)
-          img.scale(scale)
-          img.set({
-            left: 300 - (img.width! * scale) / 2,
-            top: 300 - (img.height! * scale) / 2,
-          })
-
-          canvasRef.current.add(img)
-          canvasRef.current.setObjectCoords()
-        } catch (error) {
-          console.error('Error loading image:', error)
-        }
+        fabric.Image.fromURL(
+          imageUrl,
+          (img) => {
+            if (!canvasRef.current) return
+            const scale = Math.min(600 / (img.width || 600), 600 / (img.height || 600))
+            img.scale(scale)
+            img.set({
+              left: 300 - ((img.width || 0) * scale) / 2,
+              top: 300 - ((img.height || 0) * scale) / 2,
+              selectable: true,
+            })
+            canvasRef.current.add(img)
+            canvasRef.current.renderAll()
+          },
+          { crossOrigin: 'anonymous' }
+        )
       }
 
       initCanvas()
@@ -69,6 +68,7 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
       return () => {
         if (canvasRef.current) {
           canvasRef.current.dispose()
+          canvasRef.current = null
         }
       }
     }, [imageUrl])
@@ -76,7 +76,7 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
     useImperativeHandle(ref, () => ({
       addText: (text: string) => {
         if (!canvasRef.current) return
-        const fabricText = new FabricText(text || 'Add text', {
+        const fabricText = new fabric.Text(text || 'Add text', {
           left: 100,
           top: 100,
           fontSize: 40,
@@ -92,10 +92,10 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
       },
       addShape: (type: string) => {
         if (!canvasRef.current) return
-        let shape
+        let shape: fabric.Object | undefined
 
         if (type === 'rectangle') {
-          shape = new Rect({
+          shape = new fabric.Rect({
             left: 100,
             top: 100,
             width: 200,
@@ -105,7 +105,7 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
             strokeWidth: 2,
           })
         } else if (type === 'circle') {
-          shape = new Circle({
+          shape = new fabric.Circle({
             left: 100,
             top: 100,
             radius: 50,
@@ -141,11 +141,28 @@ export const CanvasEditor = forwardRef<CanvasEditorRef, CanvasEditorProps>(
         if (!canvasRef.current) return
         const activeObject = canvasRef.current.getActiveObject()
         if (activeObject && activeObject.type === 'text') {
-          activeObject.set({ fontSize: size })
+          (activeObject as fabric.Text).set({ fontSize: size })
           canvasRef.current.renderAll()
         }
       },
       getElement: () => elementRef.current,
+      toDataURL: () => {
+        if (!canvasRef.current) return null
+        return canvasRef.current.toDataURL({ format: 'png', multiplier: 1 })
+      },
+      toBlob: () => {
+        return new Promise((resolve) => {
+          if (!canvasRef.current) {
+            resolve(null)
+            return
+          }
+          const dataUrl = canvasRef.current.toDataURL({ format: 'png', multiplier: 1 })
+          fetch(dataUrl)
+            .then((res) => res.blob())
+            .then(resolve)
+            .catch(() => resolve(null))
+        })
+      },
     }))
 
     return (
