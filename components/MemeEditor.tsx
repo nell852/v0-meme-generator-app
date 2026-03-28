@@ -10,6 +10,7 @@ import { ToolBar } from './Editor/ToolBar'
 import { SaveMemeModal } from './Editor/SaveMemeModal'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { Download } from 'lucide-react'
 
 export function MemeEditor() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -29,6 +30,19 @@ export function MemeEditor() {
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleDownload = () => {
+    if (!canvasRef.current) {
+      toast.error('Nothing to download yet')
+      return
+    }
+    const canvas = canvasRef.current.getElement()
+    if (!canvas) return
+    const link = document.createElement('a')
+    link.download = `${title || 'meme'}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
   }
 
   const handleExportAndSave = async () => {
@@ -138,6 +152,14 @@ export function MemeEditor() {
                   disabled={!title || isSaving}
                 >
                   {isSaving ? 'Saving...' : 'Save & Share'}
+                </Button>
+                <Button
+                  onClick={handleDownload}
+                  variant="outline"
+                  className="w-full gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download PNG
                 </Button>
               </div>
             </div>
