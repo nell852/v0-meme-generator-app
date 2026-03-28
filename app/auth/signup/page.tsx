@@ -12,7 +12,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 export default function SignupPage() {
@@ -21,7 +20,6 @@ export default function SignupPage() {
   const [repeatPassword, setRepeatPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,16 +42,22 @@ export default function SignupPage() {
         },
       })
       if (error) throw error
-      // If email confirmation is disabled, a session is returned immediately
+
       if (data.session) {
-        router.refresh()
-        router.push('/gallery')
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          }),
+        })
+        window.location.replace('/gallery')
       } else {
-        router.push('/auth/sign-up-success')
+        window.location.replace('/auth/sign-up-success')
       }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
-    } finally {
       setIsLoading(false)
     }
   }
