@@ -1,15 +1,14 @@
 'use client'
 
 import { useAuth } from '@/lib/hooks/useAuth'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import type { User as ProfileUser, Meme } from '@/lib/types/database'
 import Image from 'next/image'
 import { Trash2, Edit } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 export default function ProfilePage() {
   const { user, loading } = useAuth()
@@ -21,19 +20,12 @@ export default function ProfilePage() {
   const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login')
-    }
-  }, [user, loading, router])
-
-  useEffect(() => {
-    if (!user) return
+    if (loading || !user) return
 
     const fetchProfile = async () => {
       try {
         const supabase = createClient()
 
-        // Fetch profile
         const { data: profileData } = await supabase
           .from('users')
           .select('*')
@@ -45,7 +37,6 @@ export default function ProfilePage() {
           setBio(profileData.bio || '')
         }
 
-        // Fetch user's memes
         const { data: memesData } = await supabase
           .from('memes')
           .select('*')
@@ -61,20 +52,17 @@ export default function ProfilePage() {
     }
 
     fetchProfile()
-  }, [user])
+  }, [user, loading])
 
   const handleSaveBio = async () => {
     if (!user) return
-
     try {
       const supabase = createClient()
       const { error } = await supabase
         .from('users')
         .update({ bio })
         .eq('id', user.id)
-
       if (error) throw error
-
       setProfile(profile ? { ...profile, bio } : null)
       setIsEditing(false)
       toast.success('Profile updated!')
@@ -86,7 +74,6 @@ export default function ProfilePage() {
 
   const handleDeleteMeme = async (memeId: string) => {
     if (!confirm('Are you sure you want to delete this meme?')) return
-
     try {
       const supabase = createClient()
       const { error } = await supabase
@@ -94,9 +81,7 @@ export default function ProfilePage() {
         .delete()
         .eq('id', memeId)
         .eq('user_id', user?.id)
-
       if (error) throw error
-
       setMemes(memes.filter((m) => m.id !== memeId))
       toast.success('Meme deleted!')
     } catch (error) {
@@ -114,7 +99,11 @@ export default function ProfilePage() {
   }
 
   if (!user || !profile) {
-    return null
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
+      </div>
+    )
   }
 
   const likeCount = memes.reduce((sum, m) => sum + (m.likes_count || 0), 0)
@@ -122,7 +111,6 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Profile Header */}
         <div className="rounded-lg border border-border bg-card p-8 mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             {profile.avatar_url && (
@@ -148,14 +136,9 @@ export default function ProfilePage() {
                     rows={3}
                   />
                   <div className="flex gap-2">
-                    <Button onClick={handleSaveBio} size="sm">
-                      Save
-                    </Button>
+                    <Button onClick={handleSaveBio} size="sm">Save</Button>
                     <Button
-                      onClick={() => {
-                        setIsEditing(false)
-                        setBio(profile.bio || '')
-                      }}
+                      onClick={() => { setIsEditing(false); setBio(profile.bio || '') }}
                       variant="outline"
                       size="sm"
                     >
@@ -165,15 +148,8 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <>
-                  <p className="text-muted-foreground mb-4">
-                    {profile.bio || 'No bio yet'}
-                  </p>
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                  >
+                  <p className="text-muted-foreground mb-4">{profile.bio || 'No bio yet'}</p>
+                  <Button onClick={() => setIsEditing(true)} size="sm" variant="outline" className="gap-2">
                     <Edit className="h-4 w-4" />
                     Edit Profile
                   </Button>
@@ -182,7 +158,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Stats */}
           <div className="mt-8 grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-primary">{memes.length}</p>
@@ -201,31 +176,18 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Memes Section */}
         <div>
           <h2 className="text-2xl font-bold mb-6">My Memes</h2>
           {memes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {memes.map((meme) => (
-                <div
-                  key={meme.id}
-                  className="rounded-lg border border-border bg-card overflow-hidden"
-                >
+                <div key={meme.id} className="rounded-lg border border-border bg-card overflow-hidden">
                   <div className="relative h-64 w-full bg-muted">
-                    <Image
-                      src={meme.image_url}
-                      alt={meme.title}
-                      fill
-                      className="object-cover"
-                    />
+                    <Image src={meme.image_url} alt={meme.title} fill className="object-cover" />
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold truncate mb-2">
-                      {meme.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {meme.views} views
-                    </p>
+                    <h3 className="font-semibold truncate mb-2">{meme.title}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{meme.views} views</p>
                     <Button
                       onClick={() => handleDeleteMeme(meme.id)}
                       size="sm"

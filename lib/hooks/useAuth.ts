@@ -7,28 +7,22 @@ import type { User as AuthUser } from '@supabase/supabase-js'
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    const getUser = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser()
+    const supabase = createClient()
 
-        if (error) throw error
-        setUser(user)
-      } catch (error) {
-        setError(error instanceof Error ? error : new Error('Unknown error'))
-      } finally {
-        setLoading(false)
-      }
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
-    getUser()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
-  return { user, loading, error }
+  return { user, loading }
 }
