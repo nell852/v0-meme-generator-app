@@ -31,11 +31,11 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
+  console.log(`[PROXY] ${pathname} | user: ${user?.email ?? 'null'} | error: ${error?.message ?? 'none'} | cookies: ${request.cookies.getAll().map(c => c.name).join(', ')}`)
+
   const isProtected = PROTECTED_ROUTES.some((route) => pathname.startsWith(route))
 
   if (isProtected && !user) {

@@ -11,12 +11,14 @@ export function useAuth() {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[useAuth] getSession result:', session?.user?.email ?? 'null', '| error:', error?.message ?? 'none')
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[useAuth] onAuthStateChange:', event, '| user:', session?.user?.email ?? 'null')
       setUser(session?.user ?? null)
       setLoading(false)
     })
