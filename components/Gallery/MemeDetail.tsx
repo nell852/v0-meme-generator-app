@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import type { Meme, Comment } from '@/lib/types/database'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import Image from 'next/image'
-import { Heart, MessageCircle, X } from 'lucide-react'
+import { Heart, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,36 +28,24 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [commentText, setCommentText] = useState('')
   const [loading, setLoading] = useState(true)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const [commentLoading, setCommentLoading] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createClient()
+        const [commentsRes, likeRes] = await Promise.all([
+          fetch(`/api/comments?meme_id=${meme.id}`),
+          user ? fetch(`/api/likes?meme_id=${meme.id}`) : Promise.resolve(null),
+        ])
 
-        // Check if user liked this meme
-        if (user) {
-          const { data } = await supabase
-            .from('likes')
-            .select('id')
-            .eq('meme_id', meme.id)
-            .eq('user_id', user.id)
-            .single()
-          setLiked(!!data)
-        }
-
-        // Fetch comments
-        const { data: commentsData } = await supabase
-          .from('comments')
-          .select(
-            `
-            *,
-            user:user_id (id, username, avatar_url)
-          `
-          )
-          .eq('meme_id', meme.id)
-          .order('created_at', { ascending: false })
-
+        const { comments: commentsData } = await commentsRes.json()
         setComments(commentsData || [])
+
+        if (likeRes) {
+          const { liked: isLiked } = await likeRes.json()
+          setLiked(!!isLiked)
+        }
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -75,30 +62,28 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
       return
     }
 
+    setLikeLoading(true)
     try {
-      const supabase = createClient()
-
       if (liked) {
-        // Unlike
-        await supabase
-          .from('likes')
-          .delete()
-          .eq('meme_id', meme.id)
-          .eq('user_id', user.id)
+        const res = await fetch(`/api/likes?meme_id=${meme.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Failed to unlike')
         setLiked(false)
-        setLikeCount(Math.max(0, likeCount - 1))
+        setLikeCount((c) => Math.max(0, c - 1))
       } else {
-        // Like
-        await supabase.from('likes').insert({
-          meme_id: meme.id,
-          user_id: user.id,
+        const res = await fetch('/api/likes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meme_id: meme.id }),
         })
+        if (!res.ok) throw new Error('Failed to like')
         setLiked(true)
-        setLikeCount(likeCount + 1)
+        setLikeCount((c) => c + 1)
       }
     } catch (error) {
       console.error('Error toggling like:', error)
       toast.error('Failed to update like')
+    } finally {
+      setLikeLoading(false)
     }
   }
 
@@ -108,35 +93,32 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
       return
     }
 
-    if (!commentText.trim()) {
-      return
-    }
+    if (!commentText.trim()) return
 
+    setCommentLoading(true)
     try {
-      const supabase = createClient()
-      const { data: newComment } = await supabase
-        .from('comments')
-        .insert({
-          meme_id: meme.id,
-          user_id: user.id,
-          text: commentText,
-        })
-        .select(
-          `
-          *,
-          user:user_id (id, username, avatar_url)
-        `
-        )
-        .single()
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meme_id: meme.id, text: commentText }),
+      })
 
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || 'Failed to add comment')
+      }
+
+      const { comment: newComment } = await res.json()
       if (newComment) {
-        setComments([newComment, ...comments])
+        setComments((prev) => [newComment, ...prev])
         setCommentText('')
         toast.success('Comment added!')
       }
     } catch (error) {
       console.error('Error adding comment:', error)
       toast.error('Failed to add comment')
+    } finally {
+      setCommentLoading(false)
     }
   }
 
@@ -178,6 +160,7 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
           <Button
             variant={liked ? 'default' : 'outline'}
             onClick={handleLike}
+            disabled={likeLoading}
             className="gap-2"
           >
             <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
@@ -189,7 +172,7 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
           </Button>
         </div>
 
-        {/* Comments Section */}
+        {/* Comment input — only for logged-in users */}
         {user && (
           <div className="border-t border-border pt-4">
             <div className="flex gap-2 mb-4">
@@ -197,15 +180,13 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
                 placeholder="Add a comment..."
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                onKeyPress={(e) =>
-                  e.key === 'Enter' && handleAddComment()
-                }
+                onKeyDown={(e) => e.key === 'Enter' && !commentLoading && handleAddComment()}
               />
               <Button
                 onClick={handleAddComment}
-                disabled={!commentText.trim()}
+                disabled={!commentText.trim() || commentLoading}
               >
-                Post
+                {commentLoading ? 'Posting...' : 'Post'}
               </Button>
             </div>
           </div>
@@ -213,7 +194,9 @@ export function MemeDetail({ meme, onClose }: MemeDetailProps) {
 
         {/* Comments List */}
         <div className="space-y-4 border-t border-border pt-4 max-h-64 overflow-y-auto">
-          {comments.length > 0 ? (
+          {loading ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Loading comments...</p>
+          ) : comments.length > 0 ? (
             comments.map((comment) => (
               <div key={comment.id} className="text-sm">
                 <p className="font-semibold text-primary">
