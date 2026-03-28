@@ -6,6 +6,8 @@ const nextConfig = {
   allowedDevOrigins: [
     '*.replit.dev',
     '*.picard.replit.dev',
+    '*.spock.replit.dev',
+    '*.repl.co',
   ],
   images: {
     remotePatterns: [
